@@ -1,0 +1,434 @@
+{
+    "metadata": {
+        "name": "Sample University Knowledge Graph",
+        "version": "1.0",
+        "description": "Knowledge graph for a sample university with departments, courses, faculty, and prerequisites"
+    },
+    "departments": [
+        {
+            "id": "dept_cs",
+            "name": "Computer Science",
+            "code": "CS",
+            "faculty_head": "prof_smith"
+        },
+        {
+            "id": "dept_math",
+            "name": "Mathematics",
+            "code": "MATH",
+            "faculty_head": "prof_johnson"
+        },
+        {
+            "id": "dept_physics",
+            "name": "Physics",
+            "code": "PHYS",
+            "faculty_head": "prof_chen"
+        },
+        {
+            "id": "dept_ee",
+            "name": "Electrical Engineering",
+            "code": "EE",
+            "faculty_head": "prof_williams"
+        }
+    ],
+    "faculty": [
+        {
+            "id": "prof_smith",
+            "name": "Dr. Alice Smith",
+            "title": "Professor",
+            "department": "dept_cs",
+            "email": "alice.smith@university.edu",
+            "research_areas": [
+                "Machine Learning",
+                "Artificial Intelligence",
+                "Data Mining"
+            ]
+        },
+        {
+            "id": "prof_johnson",
+            "name": "Dr. Bob Johnson",
+            "title": "Professor",
+            "department": "dept_math",
+            "email": "bob.johnson@university.edu",
+            "research_areas": [
+                "Linear Algebra",
+                "Discrete Mathematics",
+                "Graph Theory"
+            ]
+        },
+        {
+            "id": "prof_chen",
+            "name": "Dr. Carol Chen",
+            "title": "Associate Professor",
+            "department": "dept_physics",
+            "email": "carol.chen@university.edu",
+            "research_areas": [
+                "Quantum Mechanics",
+                "Thermodynamics"
+            ]
+        },
+        {
+            "id": "prof_williams",
+            "name": "Dr. David Williams",
+            "title": "Professor",
+            "department": "dept_ee",
+            "email": "david.williams@university.edu",
+            "research_areas": [
+                "Digital Systems",
+                "Signal Processing"
+            ]
+        },
+        {
+            "id": "prof_garcia",
+            "name": "Dr. Elena Garcia",
+            "title": "Assistant Professor",
+            "department": "dept_cs",
+            "email": "elena.garcia@university.edu",
+            "research_areas": [
+                "Natural Language Processing",
+                "Knowledge Graphs"
+            ]
+        },
+        {
+            "id": "prof_lee",
+            "name": "Dr. Frank Lee",
+            "title": "Associate Professor",
+            "department": "dept_cs",
+            "email": "frank.lee@university.edu",
+            "research_areas": [
+                "Computer Networks",
+                "Cybersecurity"
+            ]
+        },
+        {
+            "id": "prof_taylor",
+            "name": "Dr. Grace Taylor",
+            "title": "Professor",
+            "department": "dept_math",
+            "email": "grace.taylor@university.edu",
+            "research_areas": [
+                "Calculus",
+                "Differential Equations",
+                "Numerical Analysis"
+            ]
+        }
+    ],
+    "courses": [
+        {
+            "id": "cs101",
+            "code": "CS101",
+            "name": "Introduction to Programming",
+            "department": "dept_cs",
+            "credits": 3,
+            "level": "undergraduate",
+            "description": "Fundamentals of programming using Python",
+            "taught_by": [
+                "prof_smith"
+            ]
+        },
+        {
+            "id": "cs201",
+            "code": "CS201",
+            "name": "Data Structures",
+            "department": "dept_cs",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Arrays, linked lists, trees, graphs, and algorithms",
+            "taught_by": [
+                "prof_smith",
+                "prof_garcia"
+            ]
+        },
+        {
+            "id": "cs301",
+            "code": "CS301",
+            "name": "Algorithms",
+            "department": "dept_cs",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Algorithm design and analysis",
+            "taught_by": [
+                "prof_smith"
+            ]
+        },
+        {
+            "id": "cs401",
+            "code": "CS401",
+            "name": "Machine Learning",
+            "department": "dept_cs",
+            "credits": 4,
+            "level": "graduate",
+            "description": "Introduction to machine learning techniques",
+            "taught_by": [
+                "prof_smith",
+                "prof_garcia"
+            ]
+        },
+        {
+            "id": "cs402",
+            "code": "CS402",
+            "name": "Natural Language Processing",
+            "department": "dept_cs",
+            "credits": 3,
+            "level": "graduate",
+            "description": "NLP techniques and applications",
+            "taught_by": [
+                "prof_garcia"
+            ]
+        },
+        {
+            "id": "cs350",
+            "code": "CS350",
+            "name": "Computer Networks",
+            "department": "dept_cs",
+            "credits": 3,
+            "level": "undergraduate",
+            "description": "Network protocols and architecture",
+            "taught_by": [
+                "prof_lee"
+            ]
+        },
+        {
+            "id": "cs450",
+            "code": "CS450",
+            "name": "Cybersecurity",
+            "department": "dept_cs",
+            "credits": 3,
+            "level": "graduate",
+            "description": "Security principles and practices",
+            "taught_by": [
+                "prof_lee"
+            ]
+        },
+        {
+            "id": "math101",
+            "code": "MATH101",
+            "name": "Calculus I",
+            "department": "dept_math",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Limits, derivatives, and introduction to integrals",
+            "taught_by": [
+                "prof_taylor"
+            ]
+        },
+        {
+            "id": "math102",
+            "code": "MATH102",
+            "name": "Calculus II",
+            "department": "dept_math",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Integration techniques and series",
+            "taught_by": [
+                "prof_taylor"
+            ]
+        },
+        {
+            "id": "math201",
+            "code": "MATH201",
+            "name": "Linear Algebra",
+            "department": "dept_math",
+            "credits": 3,
+            "level": "undergraduate",
+            "description": "Vectors, matrices, and linear transformations",
+            "taught_by": [
+                "prof_johnson"
+            ]
+        },
+        {
+            "id": "math301",
+            "code": "MATH301",
+            "name": "Discrete Mathematics",
+            "department": "dept_math",
+            "credits": 3,
+            "level": "undergraduate",
+            "description": "Logic, sets, graph theory, and combinatorics",
+            "taught_by": [
+                "prof_johnson"
+            ]
+        },
+        {
+            "id": "math401",
+            "code": "MATH401",
+            "name": "Probability and Statistics",
+            "department": "dept_math",
+            "credits": 4,
+            "level": "graduate",
+            "description": "Probability theory and statistical inference",
+            "taught_by": [
+                "prof_johnson",
+                "prof_taylor"
+            ]
+        },
+        {
+            "id": "phys101",
+            "code": "PHYS101",
+            "name": "Physics I",
+            "department": "dept_physics",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Mechanics and thermodynamics",
+            "taught_by": [
+                "prof_chen"
+            ]
+        },
+        {
+            "id": "phys201",
+            "code": "PHYS201",
+            "name": "Physics II",
+            "department": "dept_physics",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Electromagnetism and optics",
+            "taught_by": [
+                "prof_chen"
+            ]
+        },
+        {
+            "id": "phys301",
+            "code": "PHYS301",
+            "name": "Quantum Mechanics",
+            "department": "dept_physics",
+            "credits": 4,
+            "level": "graduate",
+            "description": "Introduction to quantum theory",
+            "taught_by": [
+                "prof_chen"
+            ]
+        },
+        {
+            "id": "ee101",
+            "code": "EE101",
+            "name": "Circuits I",
+            "department": "dept_ee",
+            "credits": 3,
+            "level": "undergraduate",
+            "description": "Basic circuit analysis",
+            "taught_by": [
+                "prof_williams"
+            ]
+        },
+        {
+            "id": "ee201",
+            "code": "EE201",
+            "name": "Digital Logic Design",
+            "department": "dept_ee",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Boolean algebra and digital circuits",
+            "taught_by": [
+                "prof_williams"
+            ]
+        },
+        {
+            "id": "ee301",
+            "code": "EE301",
+            "name": "Signal Processing",
+            "department": "dept_ee",
+            "credits": 4,
+            "level": "undergraduate",
+            "description": "Analog and digital signal processing",
+            "taught_by": [
+                "prof_williams"
+            ]
+        }
+    ],
+    "prerequisites": [
+        {
+            "course": "cs201",
+            "requires": "cs101"
+        },
+        {
+            "course": "cs301",
+            "requires": "cs201"
+        },
+        {
+            "course": "cs301",
+            "requires": "math301"
+        },
+        {
+            "course": "cs401",
+            "requires": "cs301"
+        },
+        {
+            "course": "cs401",
+            "requires": "math201"
+        },
+        {
+            "course": "cs401",
+            "requires": "math401"
+        },
+        {
+            "course": "cs402",
+            "requires": "cs401"
+        },
+        {
+            "course": "cs350",
+            "requires": "cs201"
+        },
+        {
+            "course": "cs450",
+            "requires": "cs350"
+        },
+        {
+            "course": "math102",
+            "requires": "math101"
+        },
+        {
+            "course": "math201",
+            "requires": "math101"
+        },
+        {
+            "course": "math301",
+            "requires": "math101"
+        },
+        {
+            "course": "math401",
+            "requires": "math102"
+        },
+        {
+            "course": "math401",
+            "requires": "math201"
+        },
+        {
+            "course": "phys101",
+            "requires": "math101"
+        },
+        {
+            "course": "phys201",
+            "requires": "phys101"
+        },
+        {
+            "course": "phys201",
+            "requires": "math102"
+        },
+        {
+            "course": "phys301",
+            "requires": "phys201"
+        },
+        {
+            "course": "phys301",
+            "requires": "math201"
+        },
+        {
+            "course": "ee101",
+            "requires": "phys101"
+        },
+        {
+            "course": "ee201",
+            "requires": "ee101"
+        },
+        {
+            "course": "ee201",
+            "requires": "cs101"
+        },
+        {
+            "course": "ee301",
+            "requires": "ee201"
+        },
+        {
+            "course": "ee301",
+            "requires": "math102"
+        }
+    ]
+}
