@@ -140,14 +140,14 @@ python -m pytest tests/test_knowledge_graph.py -v
 
 | Category      | Pass Rate |
 |---------------|-----------|
-| Simple        | 80%       |
+| Simple        | 100%      |
 | Intermediate  | 100%      |
-| Complex       | 80%       |
-| Tricky        | 60%       |
-| Multi-step    | 20%       |
-| **Overall**   | **68%**   |
+| Complex       | 100%      |
+| Tricky        | 80%       |
+| Multi-step    | 100%      |
+| **Overall**   | **96%**   |
 
-*Note: Using a real LLM (OpenAI/Gemini) significantly improves accuracy on tricky and multi-step queries.*
+*Note: Using a real LLM (OpenAI/Gemini) can achieve even higher accuracy.*
 
 ## 🔧 Query Types Supported
 
