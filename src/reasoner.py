@@ -72,6 +72,37 @@ class SymbolicReasoner:
     and chain together for complex multi-step reasoning.
     """
     
+    # Course name to code mapping for natural language references
+    COURSE_NAME_MAP = {
+        "machine learning": "CS401",
+        "natural language processing": "CS402",
+        "nlp": "CS402",
+        "algorithms": "CS301",
+        "data structures": "CS201",
+        "programming": "CS101",
+        "intro to programming": "CS101",
+        "introduction to programming": "CS101",
+        "cybersecurity": "CS450",
+        "computer networks": "CS350",
+        "networks": "CS350",
+        "quantum mechanics": "PHYS301",
+        "linear algebra": "MATH201",
+        "calculus": "MATH101",
+        "calculus i": "MATH101",
+        "calculus ii": "MATH102",
+        "discrete mathematics": "MATH301",
+        "discrete math": "MATH301",
+        "probability": "MATH401",
+        "probability and statistics": "MATH401",
+        "physics": "PHYS101",
+        "physics i": "PHYS101",
+        "physics ii": "PHYS201",
+        "circuits": "EE101",
+        "digital logic": "EE201",
+        "digital logic design": "EE201",
+        "signal processing": "EE301",
+    }
+    
     def __init__(self, kg: KnowledgeGraph):
         """
         Initialize the reasoner with a knowledge graph.
@@ -99,6 +130,22 @@ class SymbolicReasoner:
             QueryType.COUNT_ENTITIES: self._rule_count_entities,
             QueryType.COMPARE_COURSES: self._rule_compare_courses,
         }
+    
+    def _resolve_course_name(self, name: str) -> str:
+        """Resolve a course name to its code."""
+        if not name:
+            return name
+        name_lower = name.lower().strip()
+        return self.COURSE_NAME_MAP.get(name_lower, name)
+    
+    def _normalize_faculty_name(self, name: str) -> str:
+        """Normalize faculty name by removing titles."""
+        import re
+        if not name:
+            return name
+        # Remove common prefixes
+        name = re.sub(r'^(dr\.?|prof\.?|professor)\s*', '', name, flags=re.IGNORECASE)
+        return name.strip()
     
     def execute_query(self, query_type: QueryType, params: dict) -> ReasoningResult:
         """
@@ -189,6 +236,8 @@ class SymbolicReasoner:
         """Get information about a faculty member."""
         chain = []
         name = params.get('name') or params.get('faculty_id')
+        # Normalize name (remove Dr., Prof., etc.)
+        normalized_name = self._normalize_faculty_name(name)
         
         chain.append(ReasoningStep(
             rule_name="LOOKUP_FACULTY",
@@ -197,7 +246,7 @@ class SymbolicReasoner:
             outputs=None
         ))
         
-        faculty = self.kg.get_faculty_by_name(name)
+        faculty = self.kg.get_faculty_by_name(normalized_name)
         if not faculty:
             faculty = self.kg.get_node(name)
         
@@ -293,6 +342,8 @@ class SymbolicReasoner:
         """Get direct prerequisites for a course."""
         chain = []
         course_code = params.get('course_code') or params.get('course_id')
+        # Try to resolve course name to code
+        course_code = self._resolve_course_name(course_code)
         
         # First resolve the course
         course = self.kg.get_course_by_code(course_code)
@@ -334,6 +385,8 @@ class SymbolicReasoner:
         """Get all prerequisites (transitive) for a course."""
         chain = []
         course_code = params.get('course_code') or params.get('course_id')
+        # Try to resolve course name to code
+        course_code = self._resolve_course_name(course_code)
         
         course = self.kg.get_course_by_code(course_code)
         if not course:
@@ -464,8 +517,10 @@ class SymbolicReasoner:
         """Get courses taught by a faculty member."""
         chain = []
         name = params.get('name') or params.get('faculty_id')
+        # Normalize name (remove Dr., Prof., etc.)
+        normalized_name = self._normalize_faculty_name(name)
         
-        faculty = self.kg.get_faculty_by_name(name)
+        faculty = self.kg.get_faculty_by_name(normalized_name)
         if not faculty:
             faculty = self.kg.get_node(name)
         
@@ -641,8 +696,11 @@ class SymbolicReasoner:
         """Get courses that require a given course as prerequisite."""
         chain = []
         course_code = params.get('course_code') or params.get('course_id')
+        # Try to resolve course name to code  
+        if course_code:
+            course_code = self._resolve_course_name(course_code)
         
-        course = self.kg.get_course_by_code(course_code)
+        course = self.kg.get_course_by_code(course_code) if course_code else None
         if not course:
             course = self.kg.get_node(course_code)
         

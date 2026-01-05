@@ -137,8 +137,12 @@ class MockLLMProvider(BaseLLMProvider):
         
         # Pattern matching for different query types (ORDER MATTERS - more specific first)
         patterns = [
+            # Negative prerequisite queries FIRST (before other course patterns)
+            (r"(?:which|what)\s+course[s]?\s+(?:have|has|with|without|having)\s+no\s+prerequisite[s]?", "SEARCH_COURSES", 
+             lambda m: {"query": "no prerequisites"}),
+            
             # Count entities (specific patterns first)
-            (r"how\s+many\s+(course[s]?|facult(?:y|ies)|department[s]?|professor[s]?)", "COUNT_ENTITIES", 
+            (r"how\s+many\s+(course[s]?|facult(?:y|ies)|department[s]?|professor[s]?)\s+(?:are|do|does)?", "COUNT_ENTITIES", 
              lambda m: {"entity_type": m.group(1).rstrip('s').replace('ies', 'y')}),
             (r"(?:total\s+)?number\s+of\s+(course[s]?|facult(?:y|ies)|department[s]?)", "COUNT_ENTITIES", 
              lambda m: {"entity_type": m.group(1).rstrip('s').replace('ies', 'y')}),
@@ -159,6 +163,9 @@ class MockLLMProvider(BaseLLMProvider):
             (r"what\s+(?:do\s+i\s+need|are\s+the\s+requirements)\s+(?:to\s+take|for)", "GET_ALL_PREREQUISITES", 
              lambda m, q=question, rc=resolved_course: {"course_code": rc or self._extract_course_code(q)}),
             (r"prerequisite\s+chain\s+for", "GET_ALL_PREREQUISITES", 
+             lambda m, q=question, rc=resolved_course: {"course_code": rc or self._extract_course_code(q)}),
+            # How many prerequisites (count = need all)
+            (r"how\s+many\s+prerequisite[s]?\s+(?:does|do|for|has|have)", "GET_ALL_PREREQUISITES", 
              lambda m, q=question, rc=resolved_course: {"course_code": rc or self._extract_course_code(q)}),
             
             # Direct prerequisites  
@@ -219,10 +226,10 @@ class MockLLMProvider(BaseLLMProvider):
             (r"who\s+teaches?\s+(?:in\s+)?(?:the\s+)?(\w+)\s+department", "GET_FACULTY_BY_DEPARTMENT", 
              lambda m: {"code": self._normalize_dept_code(m.group(1))}),
             
-            # Courses taught by faculty
-            (r"(?:what\s+)?course[s]?\s+(?:does|is)\s+(?:dr\.?|professor)?\s*(\w+(?:\s+\w+)?)\s+teach", "GET_COURSES_TAUGHT_BY", 
+            # Courses taught by faculty (with proper name extraction)
+            (r"(?:what\s+)?course[s]?\s+(?:does|is)\s+(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)\s+teach", "GET_COURSES_TAUGHT_BY", 
              lambda m: {"name": m.group(1)}),
-            (r"(?:dr\.?|professor)?\s*(\w+)'?s?\s+course[s]?", "GET_COURSES_TAUGHT_BY", 
+            (r"(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)'?s?\s+course[s]?", "GET_COURSES_TAUGHT_BY", 
              lambda m: {"name": m.group(1)}),
             
             # Faculty by research area
@@ -238,7 +245,7 @@ class MockLLMProvider(BaseLLMProvider):
              lambda m: {"course_code": m.group(1).upper(), "completed_courses": self._extract_completed_courses(question)}),
             
             # Faculty info (must come after more specific patterns)
-            (r"(?:who\s+is|tell\s+me\s+about)\s+(?:dr\.?|professor)?\s*(\w+(?:\s+\w+)?)", "GET_FACULTY_INFO", 
+            (r"(?:who\s+is|tell\s+me\s+about)\s+(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)", "GET_FACULTY_INFO", 
              lambda m: {"name": m.group(1)}),
             
             # Search courses (catch-all for finding things)
@@ -246,8 +253,6 @@ class MockLLMProvider(BaseLLMProvider):
              lambda m: {"query": m.group(1).strip()}),
             (r"(?:are\s+there\s+)?(?:any\s+)?course[s]?\s+(?:about|on|related\s+to)\s+(.+)", "SEARCH_COURSES", 
              lambda m: {"query": m.group(1).strip()}),
-            (r"course[s]?\s+(?:with(?:out)?|having)\s+no\s+prerequisite[s]?", "SEARCH_COURSES", 
-             lambda m: {"query": "no prerequisites"}),
         ]
         
         for pattern, query_type, param_fn in patterns:
