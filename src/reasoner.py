@@ -517,6 +517,22 @@ class SymbolicReasoner:
         """Get courses taught by a faculty member."""
         chain = []
         name = params.get('name') or params.get('faculty_id')
+        
+        # Handle "head of {dept}" reference
+        if name and name.lower().startswith('head of '):
+            dept_code = name.lower().replace('head of ', '').strip().upper()
+            dept = self.kg.get_department_by_code(dept_code)
+            if dept:
+                head = self.kg.get_department_head(dept['id'])
+                if head:
+                    chain.append(ReasoningStep(
+                        rule_name="RESOLVE_DEPARTMENT_HEAD",
+                        description=f"Resolved '{name}' to {head['name']} ({dept['name']})",
+                        inputs={'name': name},
+                        outputs=head
+                    ))
+                    name = head['name']
+        
         # Normalize name (remove Dr., Prof., etc.)
         normalized_name = self._normalize_faculty_name(name)
         

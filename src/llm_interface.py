@@ -138,6 +138,7 @@ class MockLLMProvider(BaseLLMProvider):
         # Pattern matching for different query types (ORDER MATTERS - more specific first)
         patterns = [
             # Negative prerequisite queries FIRST (before other course patterns)
+            # Negative prerequisite queries (Must be very specific to avoid other matches)
             (r"(?:which|what)\s+course[s]?\s+(?:have|has|with|without|having)\s+no\s+prerequisite[s]?", "SEARCH_COURSES", 
              lambda m: {"query": "no prerequisites"}),
             
@@ -227,6 +228,8 @@ class MockLLMProvider(BaseLLMProvider):
              lambda m: {"code": self._normalize_dept_code(m.group(1))}),
             
             # Courses taught by faculty (with proper name extraction)
+            (r"course[s]?\s+taught\s+by\s+(?:the\s+)?head\s+of\s+(\w+)", "GET_COURSES_TAUGHT_BY",
+             lambda m: {"name": f"head of {self._normalize_dept_code(m.group(1))}"}),
             (r"(?:what\s+)?course[s]?\s+(?:does|is)\s+(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)\s+teach", "GET_COURSES_TAUGHT_BY", 
              lambda m: {"name": m.group(1)}),
             (r"(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)'?s?\s+course[s]?", "GET_COURSES_TAUGHT_BY", 

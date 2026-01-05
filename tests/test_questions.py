@@ -162,7 +162,7 @@ TEST_QUESTIONS = [
         "question": "Which courses have no prerequisites?",
         "category": "tricky",
         "expected_type": "SEARCH_COURSES",
-        "alternative_types": ["GET_COURSES_BY_LEVEL", "GET_COURSES_REQUIRING"],  # Various approaches valid
+        "alternative_types": ["GET_COURSES_BY_LEVEL"],  # Level filtering also valid approach
         "description": "Negative condition query"
     },
     
@@ -202,6 +202,195 @@ TEST_QUESTIONS = [
         "category": "multi-step",
         "expected_type": "SEARCH_COURSES",
         "description": "Existence check"
+    },
+    
+    # ========== NEW TESTS (Expanded Coverage) ==========
+    
+    # New Simple Queries
+    {
+        "id": 26,
+        "question": "What is MATH101?",
+        "category": "simple",
+        "expected_type": "GET_COURSE_INFO",
+        "description": "Course lookup - Mathematics"
+    },
+    {
+        "id": 27,
+        "question": "Who is Prof. Taylor?",
+        "category": "simple",
+        "expected_type": "GET_FACULTY_INFO",
+        "description": "Faculty lookup - Mathematics"
+    },
+    {
+        "id": 28,
+        "question": "Tell me about the Physics department",
+        "category": "simple",
+        "expected_type": "GET_DEPARTMENT_INFO",
+        "description": "Department lookup - Physics"
+    },
+    {
+        "id": 29,
+        "question": "Who teaches EE101?",
+        "category": "simple",
+        "expected_type": "GET_COURSE_INSTRUCTORS",
+        "description": "Course instructor lookup"
+    },
+    {
+        "id": 30,
+        "question": "How many faculty members are there?",
+        "category": "simple",
+        "expected_type": "COUNT_ENTITIES",
+        "description": "Count faculty"
+    },
+    
+    # New Intermediate Queries
+    {
+        "id": 31,
+        "question": "What are the prerequisites for MATH201?",
+        "category": "intermediate",
+        "expected_type": "GET_PREREQUISITES",
+        "description": "Math prerequisites"
+    },
+    {
+        "id": 32,
+        "question": "List all Physics courses",
+        "category": "intermediate",
+        "expected_type": "GET_COURSES_BY_DEPARTMENT",
+        "description": "Courses by department - Physics"
+    },
+    {
+        "id": 33,
+        "question": "Who teaches in the EE department?",
+        "category": "intermediate",
+        "expected_type": "GET_FACULTY_BY_DEPARTMENT",
+        "description": "Faculty by department - EE"
+    },
+    {
+        "id": 34,
+        "question": "What courses does Dr. Chen teach?",
+        "category": "intermediate",
+        "expected_type": "GET_COURSES_TAUGHT_BY",
+        "description": "Courses by instructor - Dr. Chen"
+    },
+    {
+        "id": 35,
+        "question": "What courses require MATH101?",
+        "category": "intermediate",
+        "expected_type": "GET_COURSES_REQUIRING",
+        "description": "Reverse prereq - MATH101"
+    },
+    
+    # New Complex Queries
+    {
+        "id": 36,
+        "question": "What are ALL preconditions for CS402 including transitive ones?",
+        "category": "complex",
+        "expected_type": "GET_ALL_PREREQUISITES",
+        "description": "Transitive prereqs - CS402 (deep chain)"
+    },
+    {
+        "id": 37,
+        "question": "List all undergraduate courses",
+        "category": "complex",
+        "expected_type": "GET_COURSES_BY_LEVEL",
+        "description": "Filter by level - Undergraduate"
+    },
+    {
+        "id": 38,
+        "question": "Who works on Quantum Mechanics?",
+        "category": "complex",
+        "expected_type": "GET_FACULTY_BY_RESEARCH",
+        "description": "Research area lookup - Quantum"
+    },
+    {
+        "id": 39,
+        "question": "Compare MATH101 and MATH102",
+        "category": "complex",
+        "expected_type": "COMPARE_COURSES",
+        "description": "Compare related courses"
+    },
+    {
+        "id": 40,
+        "question": "Find courses related to signals",
+        "category": "complex",
+        "expected_type": "SEARCH_COURSES",
+        "description": "Keyword search - signals"
+    },
+    
+    # New Tricky Queries
+    {
+        "id": 41,
+        "question": "What do I need for Signal Processing?",
+        "category": "tricky",
+        "expected_type": "GET_ALL_PREREQUISITES",
+        "alternative_types": ["GET_PREREQUISITES"],
+        "description": "Informal name + 'need'"
+    },
+    {
+        "id": 42,
+        "question": "Dr. Johnson's classes",
+        "category": "tricky",
+        "expected_type": "GET_COURSES_TAUGHT_BY",
+        "description": "Possessive informal query"
+    },
+    {
+        "id": 43,
+        "question": "Math department professors",
+        "category": "tricky",
+        "expected_type": "GET_FACULTY_BY_DEPARTMENT",
+        "description": "Informal department name"
+    },
+    {
+        "id": 44,
+        "question": "Prereqs for Algorithms",
+        "category": "tricky",
+        "expected_type": "GET_PREREQUISITES",
+        "alternative_types": ["GET_ALL_PREREQUISITES"],
+        "description": "Very short informal query"
+    },
+    {
+        "id": 45,
+        "question": "Any courses on logic?",
+        "category": "tricky",
+        "expected_type": "SEARCH_COURSES",
+        "description": "Existence check informal"
+    },
+    
+    # New Multi-step Queries
+    {
+        "id": 46,
+        "question": "How many courses require Calculus I?",
+        "category": "multi-step",
+        "expected_type": "GET_COURSES_REQUIRING",
+        "description": "Count of reverse prereqs"
+    },
+    {
+        "id": 47,
+        "question": "Can I take CS402 if I only know python?",
+        "category": "multi-step",
+        "expected_type": "CAN_TAKE_COURSE",
+        "description": "Eligibility with vague skills (should likely fail or default to basic check)"
+    },
+    {
+        "id": 48,
+        "question": "Who is the head of the department that offers CS101?",
+        "category": "multi-step",
+        "expected_type": "GET_DEPARTMENT_HEAD",
+        "description": "Head of department via course"
+    },
+    {
+        "id": 49,
+        "question": "List courses taught by the head of CS",
+        "category": "multi-step",
+        "expected_type": "GET_COURSES_TAUGHT_BY",
+        "description": "Courses by dept head"
+    },
+    {
+        "id": 50,
+        "question": "Are there incomplete prerequisites for CS401 if I took CS101?",
+        "category": "multi-step",
+        "expected_type": "CAN_TAKE_COURSE",
+        "description": "Missing prereqs check"
     },
 ]
 
