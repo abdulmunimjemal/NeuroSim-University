@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuro-Symbolic University QA Visualizer</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <!-- Cytoscape.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+    <!-- Layout extension -->
+    <script src="https://unpkg.com/layout-base/layout-base.js"></script>
+    <script src="https://unpkg.com/cose-base/cose-base.js"></script>
+    <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎓 Neuro-Symbolic University QA</h1>
+            <p class="subtitle">Interactive Knowledge Graph & Reasoning Visualizer</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Panel: Graph -->
+            <section class="graph-panel">
+                <div class="panel-header">
+                    <h2>📊 Knowledge Graph</h2>
+                    <div class="graph-controls">
+                        <button id="btn-reset-view" class="btn-icon" title="Reset View">🔄</button>
+                        <button id="btn-fit" class="btn-icon" title="Fit to Screen">⊡</button>
+                    </div>
+                </div>
+                <div class="filter-bar">
+                    <label><input type="checkbox" id="filter-dept" checked> Departments</label>
+                    <label><input type="checkbox" id="filter-faculty" checked> Faculty</label>
+                    <label><input type="checkbox" id="filter-course" checked> Courses</label>
+                </div>
+                <div id="cy-container"></div>
+                <div class="graph-legend">
+                    <span class="legend-item"><span class="dot dept"></span> Department</span>
+                    <span class="legend-item"><span class="dot faculty"></span> Faculty</span>
+                    <span class="legend-item"><span class="dot course"></span> Course</span>
+                </div>
+            </section>
+
+            <!-- Right Panel: Query -->
+            <section class="query-panel">
+                <div class="panel-header">
+                    <h2>🔍 Ask a Question</h2>
+                </div>
+
+                <!-- Query Input -->
+                <div class="query-input-section">
+                    <textarea id="question-input" placeholder="e.g., What are all prerequisites for CS401?"></textarea>
+                    <div class="query-actions">
+                        <select id="example-select">
+                            <option value="">-- Examples --</option>
+                        </select>
+                        <button id="btn-ask" class="btn-primary">Ask 🚀</button>
+                    </div>
+                </div>
+
+                <!-- Reasoning Trace -->
+                <div class="reasoning-section">
+                    <h3>⚙️ Reasoning Trace</h3>
+                    <div id="reasoning-container" class="reasoning-container">
+                        <p class="placeholder-text">Submit a question to see the step-by-step reasoning...</p>
+                    </div>
+                </div>
+
+                <!-- Answer -->
+                <div class="answer-section">
+                    <h3>💡 Answer</h3>
+                    <div id="answer-container" class="answer-container">
+                        <p class="placeholder-text">The answer will appear here...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Node Details Modal -->
+        <div id="node-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" id="modal-close">×</button>
+                <h3 id="modal-title">Node Details</h3>
+                <div id="modal-body"></div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
