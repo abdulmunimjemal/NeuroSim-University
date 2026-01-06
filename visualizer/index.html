@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neuro-Symbolic University QA Visualizer</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Cytoscape.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
     <!-- Layout extension -->
@@ -12,11 +15,12 @@
     <script src="https://unpkg.com/cose-base/cose-base.js"></script>
     <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
 </head>
+
 <body>
     <div class="app-container">
         <!-- Header -->
         <header class="header">
-            <h1>🎓 Neuro-Symbolic University QA</h1>
+            <h1><i data-lucide="graduation-cap"></i> Neuro-Symbolic University QA</h1>
             <p class="subtitle">Interactive Knowledge Graph & Reasoning Visualizer</p>
         </header>
 
@@ -25,10 +29,12 @@
             <!-- Left Panel: Graph -->
             <section class="graph-panel">
                 <div class="panel-header">
-                    <h2>📊 Knowledge Graph</h2>
+                    <h2><i data-lucide="share-2"></i> Knowledge Graph</h2>
                     <div class="graph-controls">
-                        <button id="btn-reset-view" class="btn-icon" title="Reset View">🔄</button>
-                        <button id="btn-fit" class="btn-icon" title="Fit to Screen">⊡</button>
+                        <button id="btn-reset-view" class="btn-icon" title="Reset View"><i
+                                data-lucide="rotate-ccw"></i></button>
+                        <button id="btn-fit" class="btn-icon" title="Fit to Screen"><i
+                                data-lucide="maximize-2"></i></button>
                     </div>
                 </div>
                 <div class="filter-bar">
@@ -47,7 +53,7 @@
             <!-- Right Panel: Query -->
             <section class="query-panel">
                 <div class="panel-header">
-                    <h2>🔍 Ask a Question</h2>
+                    <h2><i data-lucide="search"></i> Ask a Question</h2>
                 </div>
 
                 <!-- Query Input -->
@@ -55,15 +61,15 @@
                     <textarea id="question-input" placeholder="e.g., What are all prerequisites for CS401?"></textarea>
                     <div class="query-actions">
                         <select id="example-select">
-                            <option value="">-- Examples --</option>
+                            <option value="">Select an example...</option>
                         </select>
-                        <button id="btn-ask" class="btn-primary">Ask 🚀</button>
+                        <button id="btn-ask" class="btn-primary"><i data-lucide="send"></i> Ask</button>
                     </div>
                 </div>
 
                 <!-- Reasoning Trace -->
                 <div class="reasoning-section">
-                    <h3>⚙️ Reasoning Trace</h3>
+                    <h3><i data-lucide="settings"></i> Reasoning Trace</h3>
                     <div id="reasoning-container" class="reasoning-container">
                         <p class="placeholder-text">Submit a question to see the step-by-step reasoning...</p>
                     </div>
@@ -71,7 +77,7 @@
 
                 <!-- Answer -->
                 <div class="answer-section">
-                    <h3>💡 Answer</h3>
+                    <h3><i data-lucide="lightbulb"></i> Answer</h3>
                     <div id="answer-container" class="answer-container">
                         <p class="placeholder-text">The answer will appear here...</p>
                     </div>
@@ -96,5 +102,7 @@
     </div>
 
     <script src="/static/app.js"></script>
+    <script>lucide.createIcons();</script>
 </body>
+
 </html>
