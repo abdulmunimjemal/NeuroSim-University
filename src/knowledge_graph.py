@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any, Optional, Union
 import networkx as nx
 
+NodeId = str
+CourseId = str
+DepartmentId = str
+FacultyId = str
+
 
 class KnowledgeGraph:
     """
@@ -130,7 +135,7 @@ class KnowledgeGraph:
     
     # ========== Basic Query Methods ==========
     
-    def get_node(self, node_id: str) -> Optional[dict]:
+    def get_node(self, node_id: NodeId) -> Optional[dict]:
         """
         Get a node by its ID with all attributes.
         
@@ -220,7 +225,7 @@ class KnowledgeGraph:
                 return dept
         return None
     
-    def get_prerequisites(self, course_id: str) -> list[dict]:
+    def get_prerequisites(self, course_id: CourseId) -> list[dict]:
         """
         Get the direct prerequisites for a course.
         
@@ -238,7 +243,7 @@ class KnowledgeGraph:
                     prereqs.append(prereq_node)
         return prereqs
     
-    def get_all_prerequisites(self, course_id: str) -> list[dict]:
+    def get_all_prerequisites(self, course_id: CourseId) -> list[dict]:
         """
         Get all prerequisites for a course (including transitive prerequisites).
         
@@ -261,7 +266,7 @@ class KnowledgeGraph:
         # Return as list of course dictionaries
         return [self.get_node(prereq_id) for prereq_id in all_prereqs if self.get_node(prereq_id)]
     
-    def get_courses_by_department(self, dept_id: str) -> list[dict]:
+    def get_courses_by_department(self, dept_id: DepartmentId) -> list[dict]:
         """
         Get all courses offered by a department.
         
@@ -279,7 +284,7 @@ class KnowledgeGraph:
                     courses.append(node)
         return courses
     
-    def get_faculty_by_department(self, dept_id: str) -> list[dict]:
+    def get_faculty_by_department(self, dept_id: DepartmentId) -> list[dict]:
         """
         Get all faculty members in a department.
         
@@ -297,7 +302,7 @@ class KnowledgeGraph:
                     faculty.append(node)
         return faculty
     
-    def get_department_head(self, dept_id: str) -> Optional[dict]:
+    def get_department_head(self, dept_id: DepartmentId) -> Optional[dict]:
         """
         Get the head of a department.
         
@@ -312,7 +317,7 @@ class KnowledgeGraph:
                 return self.get_node(source)
         return None
     
-    def get_courses_taught_by(self, faculty_id: str) -> list[dict]:
+    def get_courses_taught_by(self, faculty_id: FacultyId) -> list[dict]:
         """
         Get all courses taught by a faculty member.
         
@@ -330,7 +335,7 @@ class KnowledgeGraph:
                     courses.append(course)
         return courses
     
-    def get_course_instructors(self, course_id: str) -> list[dict]:
+    def get_course_instructors(self, course_id: CourseId) -> list[dict]:
         """
         Get all faculty who teach a specific course.
         
@@ -348,7 +353,7 @@ class KnowledgeGraph:
                     instructors.append(faculty)
         return instructors
     
-    def get_faculty_department(self, faculty_id: str) -> Optional[dict]:
+    def get_faculty_department(self, faculty_id: FacultyId) -> Optional[dict]:
         """
         Get the department a faculty member belongs to.
         
@@ -363,7 +368,7 @@ class KnowledgeGraph:
                 return self.get_node(target)
         return None
     
-    def get_course_department(self, course_id: str) -> Optional[dict]:
+    def get_course_department(self, course_id: CourseId) -> Optional[dict]:
         """
         Get the department a course belongs to.
         
@@ -411,7 +416,7 @@ class KnowledgeGraph:
             if any(area_lower in ra.lower() for ra in faculty.get('research_areas', []))
         ]
     
-    def get_prerequisite_chain(self, course_id: str) -> list[list[dict]]:
+    def get_prerequisite_chain(self, course_id: CourseId) -> list[list[dict]]:
         """
         Get all possible prerequisite chains (paths) to take a course.
         
@@ -439,7 +444,7 @@ class KnowledgeGraph:
         # Remove empty paths and duplicates
         return [path for path in paths if path]
     
-    def can_take_course(self, course_id: str, completed_courses: list[str]) -> tuple[bool, list[str]]:
+    def can_take_course(self, course_id: CourseId, completed_courses: list[CourseId]) -> tuple[bool, list[CourseId]]:
         """
         Check if a student can take a course given their completed courses.
         
@@ -457,7 +462,7 @@ class KnowledgeGraph:
         ]
         return (len(missing) == 0, missing)
     
-    def get_courses_requiring(self, course_id: str) -> list[dict]:
+    def get_courses_requiring(self, course_id: CourseId) -> list[dict]:
         """
         Get all courses that have this course as a prerequisite.
         
