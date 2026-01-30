@@ -2,7 +2,7 @@
 
 Welcome to the Neuro-Symbolic University QA Agent documentation!
 
-Choose a topic below to learn more:
+Choose a topic below to learn more. The links are ordered as a suggested reading path:
 
 ---
 
