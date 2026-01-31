@@ -82,9 +82,13 @@ Think of it as a **smart database** that stores information as a network of conn
 
 ### 🔮 What is Symbolic Reasoning?
 
-Symbolic reasoning means following **explicit rules** to reach conclusions.
+Symbolic reasoning means solving problems by applying **clearly defined rules and logical steps**, instead of learning from data.
 
-**Example Rule**: *"To find all prerequisites for a course, find its direct prerequisites, then find THEIR prerequisites, and so on until there are no more."*
+**Example Rule**:  
+*"If a customer is under 21 years old, their credit application must be rejected.  
+If the customer is 21 or older and their credit score is above 700, the application can be approved."*
+
+Using symbolic reasoning, the system simply checks these rules step-by-step to reach a decision.
 
 ```
 Q: What are ALL prerequisites for CS401 (Machine Learning)?
