@@ -31,6 +31,7 @@ Choose a topic below to learn more. The links are ordered as a suggested reading
 | Document | Description | Best For |
 |----------|-------------|----------|
 | [Testing Guide](./07-TESTING.md) | Test categories, running tests, results | QA engineers |
+| [Evaluation Report](./08-EVALUATION-REPORT.md) | Test results, limitations, how to reproduce | Reports, reviewers |
 
 ---
 
