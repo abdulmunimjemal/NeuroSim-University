@@ -2,8 +2,8 @@
 LLM Interface module for the Neuro-Symbolic University QA Agent.
 
 This module provides the LLMInterface class that translates natural language
-questions into structured symbolic queries and generates human-readable
-explanations from reasoning results.
+questions into structured symbolic queries using OpenAI's structured output
+feature for reliable query parsing.
 """
 
 import os
@@ -11,8 +11,10 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional, Any, Literal
+from enum import Enum
 
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 from src.reasoner import QueryType, ReasoningResult
@@ -20,6 +22,89 @@ from src.reasoner import QueryType, ReasoningResult
 
 # Load environment variables
 load_dotenv()
+
+
+# ============================================================
+# Pydantic Models for Structured Output
+# ============================================================
+
+class QueryTypeEnum(str, Enum):
+    """Query types as string enum for Pydantic."""
+    GENERAL_QUESTION = "GENERAL_QUESTION"
+    GET_COURSE_INFO = "GET_COURSE_INFO"
+    GET_FACULTY_INFO = "GET_FACULTY_INFO"
+    GET_DEPARTMENT_INFO = "GET_DEPARTMENT_INFO"
+    GET_PREREQUISITES = "GET_PREREQUISITES"
+    GET_ALL_PREREQUISITES = "GET_ALL_PREREQUISITES"
+    GET_COURSES_BY_DEPARTMENT = "GET_COURSES_BY_DEPARTMENT"
+    GET_FACULTY_BY_DEPARTMENT = "GET_FACULTY_BY_DEPARTMENT"
+    GET_COURSES_TAUGHT_BY = "GET_COURSES_TAUGHT_BY"
+    GET_COURSE_INSTRUCTORS = "GET_COURSE_INSTRUCTORS"
+    GET_DEPARTMENT_HEAD = "GET_DEPARTMENT_HEAD"
+    CAN_TAKE_COURSE = "CAN_TAKE_COURSE"
+    GET_COURSES_REQUIRING = "GET_COURSES_REQUIRING"
+    GET_COURSES_BY_LEVEL = "GET_COURSES_BY_LEVEL"
+    GET_FACULTY_BY_RESEARCH = "GET_FACULTY_BY_RESEARCH"
+    SEARCH_COURSES = "SEARCH_COURSES"
+    COUNT_ENTITIES = "COUNT_ENTITIES"
+    COMPARE_COURSES = "COMPARE_COURSES"
+
+
+class StructuredQueryResponse(BaseModel):
+    """Structured response from LLM for query parsing."""
+    query_type: QueryTypeEnum = Field(
+        description="The type of query to execute based on the user's question"
+    )
+    course_code: Optional[str] = Field(
+        default=None,
+        description="Course code like CS101, MATH201. Extract from question or resolve course names."
+    )
+    course1: Optional[str] = Field(
+        default=None,
+        description="First course code for comparison queries"
+    )
+    course2: Optional[str] = Field(
+        default=None,
+        description="Second course code for comparison queries"
+    )
+    faculty_name: Optional[str] = Field(
+        default=None,
+        description="Faculty member name (without Dr./Prof. prefix)"
+    )
+    department_code: Optional[str] = Field(
+        default=None,
+        description="Department code: CS, MATH, PHYS, or EE"
+    )
+    level: Optional[Literal["undergraduate", "graduate"]] = Field(
+        default=None,
+        description="Course level filter"
+    )
+    research_area: Optional[str] = Field(
+        default=None,
+        description="Research area to search for"
+    )
+    search_query: Optional[str] = Field(
+        default=None,
+        description="Search term for course search"
+    )
+    entity_type: Optional[Literal["course", "faculty", "department"]] = Field(
+        default=None,
+        description="Entity type for counting"
+    )
+    completed_courses: Optional[list[str]] = Field(
+        default=None,
+        description="List of completed course codes for eligibility check"
+    )
+    question: Optional[str] = Field(
+        default=None,
+        description="Original question for general queries"
+    )
+    confidence: float = Field(
+        default=0.9,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in the query interpretation (0.0 to 1.0)"
+    )
 
 
 @dataclass
@@ -31,6 +116,10 @@ class ParsedQuery:
     confidence: float  # 0.0 to 1.0
 
 
+# ============================================================
+# LLM Providers
+# ============================================================
+
 class BaseLLMProvider(ABC):
     """Abstract base class for LLM providers."""
     
@@ -38,10 +127,15 @@ class BaseLLMProvider(ABC):
     def generate(self, prompt: str) -> str:
         """Generate a response from the LLM."""
         pass
+    
+    @abstractmethod
+    def parse_query_structured(self, question: str, system_prompt: str) -> StructuredQueryResponse:
+        """Parse a question into a structured query using structured output."""
+        pass
 
 
 class OpenAIProvider(BaseLLMProvider):
-    """OpenAI API provider."""
+    """OpenAI API provider with structured output support."""
     
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -62,6 +156,19 @@ class OpenAIProvider(BaseLLMProvider):
             temperature=0.1
         )
         return response.choices[0].message.content
+    
+    def parse_query_structured(self, question: str, system_prompt: str) -> StructuredQueryResponse:
+        """Use OpenAI structured output to parse the query."""
+        response = self.client.beta.chat.completions.parse(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question}
+            ],
+            response_format=StructuredQueryResponse,
+            temperature=0.1
+        )
+        return response.choices[0].message.parsed
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -83,283 +190,101 @@ class GeminiProvider(BaseLLMProvider):
     def generate(self, prompt: str) -> str:
         response = self.client.generate_content(prompt)
         return response.text
+    
+    def parse_query_structured(self, question: str, system_prompt: str) -> StructuredQueryResponse:
+        """Use Gemini to parse the query (fallback to JSON parsing)."""
+        prompt = f"""{system_prompt}
 
+Question: "{question}"
 
-class MockLLMProvider(BaseLLMProvider):
-    """
-    Mock LLM provider for testing without API calls.
-    Uses pattern matching to simulate query parsing.
-    """
-    
-    # Course name to code mapping for natural language references
-    COURSE_NAME_MAP = {
-        "machine learning": "CS401",
-        "natural language processing": "CS402",
-        "nlp": "CS402",
-        "algorithms": "CS301",
-        "data structures": "CS201",
-        "programming": "CS101",
-        "intro to programming": "CS101",
-        "introduction to programming": "CS101",
-        "cybersecurity": "CS450",
-        "computer networks": "CS350",
-        "networks": "CS350",
-        "quantum mechanics": "PHYS301",
-        "linear algebra": "MATH201",
-        "calculus": "MATH101",
-        "discrete mathematics": "MATH301",
-        "discrete math": "MATH301",
-        "probability": "MATH401",
-        "physics": "PHYS101",
-        "circuits": "EE101",
-        "digital logic": "EE201",
-        "signal processing": "EE301",
-    }
-    
-    def generate(self, prompt: str) -> str:
-        # Extract the question from the prompt
-        question_match = re.search(r'Question:\s*"([^"]+)"', prompt)
-        if not question_match:
-            return json.dumps({
-                "query_type": "SEARCH_COURSES",
-                "parameters": {"query": ""},
-                "confidence": 0.3
-            })
+Respond with ONLY a valid JSON object matching this schema:
+{{
+    "query_type": "<one of the query types>",
+    "course_code": "<course code if applicable>",
+    "faculty_name": "<faculty name if applicable>",
+    "department_code": "<CS|MATH|PHYS|EE if applicable>",
+    "level": "<undergraduate|graduate if applicable>",
+    "research_area": "<research area if applicable>",
+    "search_query": "<search term if applicable>",
+    "entity_type": "<course|faculty|department if applicable>",
+    "completed_courses": ["<list of course codes if applicable>"],
+    "question": "<original question for general queries>",
+    "confidence": <0.0 to 1.0>
+}}"""
         
-        question = question_match.group(1).lower()
+        response = self.generate(prompt)
         
-        # Check for course name references and resolve to codes
-        resolved_course = None
-        for name, code in self.COURSE_NAME_MAP.items():
-            if name in question:
-                resolved_course = code
-                break
-        
-        # Pattern matching for different query types (ORDER MATTERS - more specific first)
-        patterns = [
-            # Negative prerequisite queries FIRST (before other course patterns)
-            # Negative prerequisite queries (Must be very specific to avoid other matches)
-            (r"(?:which|what)\s+course[s]?\s+(?:have|has|with|without|having)\s+no\s+prerequisite[s]?", "SEARCH_COURSES", 
-             lambda m: {"query": "no prerequisites"}),
+        # Parse JSON response
+        try:
+            cleaned = response.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"```(?:json)?\n?", "", cleaned)
+                cleaned = cleaned.rstrip("`").strip()
             
-            # Count entities (specific patterns first)
-            (r"how\s+many\s+(course[s]?|facult(?:y|ies)|department[s]?|professor[s]?)\s+(?:are|do|does)?", "COUNT_ENTITIES", 
-             lambda m: {"entity_type": m.group(1).rstrip('s').replace('ies', 'y')}),
-            (r"(?:total\s+)?number\s+of\s+(course[s]?|facult(?:y|ies)|department[s]?)", "COUNT_ENTITIES", 
-             lambda m: {"entity_type": m.group(1).rstrip('s').replace('ies', 'y')}),
-            
-            # Compare courses
-            (r"compare\s+(\w+\d+)\s+(?:and|with|to|vs)\s+(\w+\d+)", "COMPARE_COURSES", 
-             lambda m: {"course1": m.group(1).upper(), "course2": m.group(2).upper()}),
-            (r"difference\s+between\s+(\w+\d+)\s+and\s+(\w+\d+)", "COMPARE_COURSES", 
-             lambda m: {"course1": m.group(1).upper(), "course2": m.group(2).upper()}),
-            
-            # ALL prerequisites (specific - must come before regular prereqs)
-            (r"all\s+(?:the\s+)?prerequisite[s]?\s+(?:for|of|to\s+take)\s+(\w+\d+)", "GET_ALL_PREREQUISITES", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            (r"all\s+(?:the\s+)?prerequisite[s]?.*including\s+transitive", "GET_ALL_PREREQUISITES", 
-             lambda m, q=question: {"course_code": self._extract_course_code(q)}),
-            (r"(?:what\s+)?prerequisite[s]?\s+do\s+i\s+need\s+to\s+take", "GET_ALL_PREREQUISITES", 
-             lambda m, q=question, rc=resolved_course: {"course_code": rc or self._extract_course_code(q)}),
-            (r"what\s+(?:do\s+i\s+need|are\s+the\s+requirements)\s+(?:to\s+take|for)", "GET_ALL_PREREQUISITES", 
-             lambda m, q=question, rc=resolved_course: {"course_code": rc or self._extract_course_code(q)}),
-            (r"prerequisite\s+chain\s+for", "GET_ALL_PREREQUISITES", 
-             lambda m, q=question, rc=resolved_course: {"course_code": rc or self._extract_course_code(q)}),
-            # How many prerequisites (count = need all)
-            (r"how\s+many\s+prerequisite[s]?\s+(?:does|do|for|has|have)", "GET_ALL_PREREQUISITES", 
-             lambda m, q=question, rc=resolved_course: {"course_code": rc or self._extract_course_code(q)}),
-            
-            # Direct prerequisites  
-            (r"(?:what\s+are\s+)?(?:the\s+)?prerequisite[s]?\s+(?:for|of)\s+(\w+\d+)", "GET_PREREQUISITES", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            
-            # Courses by level (specific patterns)
-            (r"(?:list\s+)?(?:all\s+)?(undergraduate|graduate)\s+course[s]?", "GET_COURSES_BY_LEVEL", 
-             lambda m: {"level": m.group(1)}),
-            (r"(undergraduate|graduate)\s+level\s+course[s]?", "GET_COURSES_BY_LEVEL", 
-             lambda m: {"level": m.group(1)}),
-            
-            # Department head (specific)
-            (r"(?:who\s+is\s+)?(?:the\s+)?head\s+of\s+(?:the\s+)?(\w+)(?:\s+department)?", "GET_DEPARTMENT_HEAD", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            (r"(\w+)\s+department\s+head", "GET_DEPARTMENT_HEAD", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            
-            # Courses requiring (reverse prerequisite)
-            (r"(?:what\s+)?course[s]?\s+require\s+(\w+\d+)", "GET_COURSES_REQUIRING", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            (r"which\s+course[s]?\s+(?:need|require)\s+(\w+\d+)", "GET_COURSES_REQUIRING", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            
-            # Course instructors
-            (r"who\s+teaches?\s+(\w+\d+)", "GET_COURSE_INSTRUCTORS", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            (r"instructor[s]?\s+(?:for|of)\s+(\w+\d+)", "GET_COURSE_INSTRUCTORS", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            (r"(\w+\d+)\s+(?:is\s+)?taught\s+by", "GET_COURSE_INSTRUCTORS", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            
-            # Course info
-            (r"(?:tell\s+me\s+about|what\s+is|describe|info\s+(?:about|on))\s+(?:the\s+)?(?:course\s+)?(\w+\d+)", "GET_COURSE_INFO", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            (r"(\w+\d+)\s+(?:course\s+)?(?:info|information|details)", "GET_COURSE_INFO", 
-             lambda m: {"course_code": m.group(1).upper()}),
-            
-            # Department info (specific patterns to avoid faculty match)
-            (r"(?:tell\s+me\s+about|what\s+is|describe)\s+(?:the\s+)?(\w+)\s+department", "GET_DEPARTMENT_INFO", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            (r"(?:info|information|details)\s+(?:about|on)\s+(?:the\s+)?(\w+)\s+department", "GET_DEPARTMENT_INFO", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            
-            # Courses by department
-            (r"(?:what\s+)?course[s]?\s+(?:are\s+)?(?:offered\s+)?(?:in|by)\s+(?:the\s+)?(\w+)\s*(?:department)?", "GET_COURSES_BY_DEPARTMENT", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            (r"list\s+(?:all\s+)?(\w+)\s+course[s]?", "GET_COURSES_BY_DEPARTMENT", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            (r"(\w+)\s+department\s+course[s]?", "GET_COURSES_BY_DEPARTMENT", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            
-            # Faculty by department
-            (r"(?:who\s+are\s+)?(?:the\s+)?facult(?:y|ies)\s+in\s+(?:the\s+)?(\w+)", "GET_FACULTY_BY_DEPARTMENT", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            (r"professors?\s+in\s+(?:the\s+)?(\w+)", "GET_FACULTY_BY_DEPARTMENT", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            (r"who\s+teaches?\s+(?:in\s+)?(?:the\s+)?(\w+)\s+department", "GET_FACULTY_BY_DEPARTMENT", 
-             lambda m: {"code": self._normalize_dept_code(m.group(1))}),
-            
-            # Courses taught by faculty (with proper name extraction)
-            (r"course[s]?\s+taught\s+by\s+(?:the\s+)?head\s+of\s+(\w+)", "GET_COURSES_TAUGHT_BY",
-             lambda m: {"name": f"head of {self._normalize_dept_code(m.group(1))}"}),
-            (r"(?:what\s+)?course[s]?\s+(?:does|is)\s+(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)\s+teach", "GET_COURSES_TAUGHT_BY", 
-             lambda m: {"name": m.group(1)}),
-            (r"(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)'?s?\s+course[s]?", "GET_COURSES_TAUGHT_BY", 
-             lambda m: {"name": m.group(1)}),
-            
-            # Faculty by research area
-            (r"(?:who\s+)?(?:does\s+)?research\s+(?:on|in|about)\s+(.+)", "GET_FACULTY_BY_RESEARCH", 
-             lambda m: {"area": m.group(1).strip()}),
-            (r"facult(?:y|ies)\s+(?:working\s+)?(?:on|in)\s+(.+)", "GET_FACULTY_BY_RESEARCH", 
-             lambda m: {"area": m.group(1).strip()}),
-            (r"(machine\s+learning|ai|artificial\s+intelligence|nlp|data\s+mining)\s+(?:research(?:ers?)?|facult(?:y|ies))", "GET_FACULTY_BY_RESEARCH", 
-             lambda m: {"area": m.group(1)}),
-            
-            # Can take course
-            (r"can\s+(?:i|a\s+student)\s+take\s+(\w+\d+)", "CAN_TAKE_COURSE", 
-             lambda m: {"course_code": m.group(1).upper(), "completed_courses": self._extract_completed_courses(question)}),
-            
-            # Faculty info (must come after more specific patterns)
-            (r"(?:who\s+is|tell\s+me\s+about)\s+(?:dr\.?|prof(?:essor)?)?\s*\.?\s*(\w+)", "GET_FACULTY_INFO", 
-             lambda m: {"name": m.group(1)}),
-            
-            # Search courses (catch-all for finding things)
-            (r"(?:search|find|look\s+for)\s+(?:course[s]?\s+)?(?:about|on|related\s+to)?\s*(.+)", "SEARCH_COURSES", 
-             lambda m: {"query": m.group(1).strip()}),
-            (r"(?:are\s+there\s+)?(?:any\s+)?course[s]?\s+(?:about|on|related\s+to)\s+(.+)", "SEARCH_COURSES", 
-             lambda m: {"query": m.group(1).strip()}),
-        ]
-        
-        for pattern, query_type, param_fn in patterns:
-            match = re.search(pattern, question, re.IGNORECASE)
-            if match:
-                try:
-                    params = param_fn(match)
-                except TypeError:
-                    # Lambda might need the question context
-                    params = param_fn(match)
-                return json.dumps({
-                    "query_type": query_type,
-                    "parameters": params,
-                    "confidence": 0.85
-                })
-        
-        # Default: search courses
-        return json.dumps({
-            "query_type": "SEARCH_COURSES",
-            "parameters": {"query": question},
-            "confidence": 0.5
-        })
-    
-    def _extract_course_code(self, question: str) -> str:
-        """Extract course code from a question."""
-        match = re.search(r'\b([A-Za-z]+\d+)\b', question)
-        if match:
-            return match.group(1).upper()
-        # Try to find by name
-        for name, code in self.COURSE_NAME_MAP.items():
-            if name in question.lower():
-                return code
-        return ""
-    
-    def _normalize_dept_code(self, dept: str) -> str:
-        """Normalize department name/code to standard code."""
-        dept_lower = dept.lower()
-        dept_map = {
-            "computer science": "CS", "computer": "CS", "cs": "CS", "comp": "CS",
-            "mathematics": "MATH", "math": "MATH", "maths": "MATH",
-            "physics": "PHYS", "phys": "PHYS",
-            "electrical engineering": "EE", "electrical": "EE", "ee": "EE",
-        }
-        return dept_map.get(dept_lower, dept.upper())
-    
-    def _extract_completed_courses(self, question: str) -> list:
-        """Extract completed courses from question."""
-        # Look for patterns like "completed CS101 and MATH101" or "only completed CS101"
-        courses = re.findall(r'\b([A-Za-z]+\d+)\b', question)
-        return [c.upper() for c in courses if c.lower() not in ['cs401', 'take']]
+            data = json.loads(cleaned)
+            return StructuredQueryResponse(**data)
+        except (json.JSONDecodeError, Exception) as e:
+            # Fallback to search
+            return StructuredQueryResponse(
+                query_type=QueryTypeEnum.SEARCH_COURSES,
+                search_query=question,
+                confidence=0.3
+            )
 
 
 class LLMInterface:
     """
-    Interface for translating natural language to symbolic queries and
-    generating explanations from reasoning results.
+    Interface for translating natural language to symbolic queries using
+    OpenAI's structured output for reliable query parsing.
     """
     
-    # System prompt for query parsing
-    PARSE_SYSTEM_PROMPT = """You are a query parser for a university knowledge base. 
-Your task is to analyze natural language questions and extract structured query information.
+    # System prompt for structured query parsing
+    PARSE_SYSTEM_PROMPT = """You are a query parser for a university knowledge base.
+Analyze the user's question and determine the appropriate query type and parameters.
 
-The knowledge base contains information about:
-- Departments (CS, MATH, PHYS, EE)
-- Faculty members and their research areas
-- Courses with codes like CS101, MATH201, etc.
-- Prerequisites relationships between courses
+The knowledge base contains:
+- 4 Departments: CS (Computer Science), MATH (Mathematics), PHYS (Physics), EE (Electrical Engineering)
+- Faculty members with names, titles, research areas
+- Courses with codes like CS101, CS201, CS301, CS401, MATH101, MATH201, PHYS101, EE101, etc.
+- Prerequisite relationships between courses
 
-Available query types:
-- GET_COURSE_INFO: Get details about a specific course
-- GET_FACULTY_INFO: Get details about a faculty member
-- GET_DEPARTMENT_INFO: Get details about a department
-- GET_PREREQUISITES: Get direct prerequisites for a course
-- GET_ALL_PREREQUISITES: Get ALL prerequisites (including transitive) for a course
-- GET_COURSES_BY_DEPARTMENT: List courses in a department
-- GET_FACULTY_BY_DEPARTMENT: List faculty in a department
-- GET_COURSES_TAUGHT_BY: List courses taught by a faculty member
-- GET_COURSE_INSTRUCTORS: Get who teaches a course
-- GET_DEPARTMENT_HEAD: Get the head of a department
-- CAN_TAKE_COURSE: Check if prerequisites are met (needs completed_courses list)
-- GET_COURSES_REQUIRING: Find courses that require a given course
-- GET_COURSES_BY_LEVEL: List undergraduate or graduate courses
-- GET_FACULTY_BY_RESEARCH: Find faculty by research area
-- SEARCH_COURSES: Search courses by keyword
-- COUNT_ENTITIES: Count courses, faculty, etc.
-- COMPARE_COURSES: Compare two courses
+Course name to code mappings (use these to resolve course names):
+- "Machine Learning" = CS401
+- "Algorithms" = CS301
+- "Data Structures" = CS201
+- "Introduction to Programming" / "Programming" = CS101
+- "Natural Language Processing" / "NLP" = CS402
+- "Calculus" = MATH101
+- "Linear Algebra" = MATH201
+- "Discrete Mathematics" = MATH301
+- "Probability" = MATH401
+- "Physics" = PHYS101
+- "Quantum Mechanics" = PHYS301
+- "Circuits" = EE101
+- "Digital Logic" = EE201
+- "Signal Processing" = EE301
 
-Output JSON with:
-{
-  "query_type": "<QUERY_TYPE>",
-  "parameters": {<relevant parameters>},
-  "confidence": <0.0 to 1.0>
-}
+Query type guidelines:
+- GENERAL_QUESTION: Greetings, help requests, questions about the system itself
+- GET_COURSE_INFO: "What is CS101?", "Tell me about Machine Learning"
+- GET_FACULTY_INFO: "Who is Dr. Smith?", "Tell me about Professor Johnson"
+- GET_DEPARTMENT_INFO: "Tell me about the CS department"
+- GET_PREREQUISITES: Direct prerequisites only - "What are the prerequisites for CS201?"
+- GET_ALL_PREREQUISITES: All prerequisites (transitive) - "What are ALL prerequisites for CS401?"
+- GET_COURSES_BY_DEPARTMENT: "List CS courses", "What courses are in Math?"
+- GET_FACULTY_BY_DEPARTMENT: "Who teaches in CS?", "Faculty in Math department"
+- GET_COURSES_TAUGHT_BY: "What does Dr. Smith teach?", "Dr. Garcia's courses"
+- GET_COURSE_INSTRUCTORS: "Who teaches CS401?", "Instructor for Machine Learning"
+- GET_DEPARTMENT_HEAD: "Who is the head of CS?"
+- CAN_TAKE_COURSE: "Can I take CS301 if I've completed CS101?"
+- GET_COURSES_REQUIRING: "What courses require CS101?"
+- GET_COURSES_BY_LEVEL: "List graduate courses", "undergraduate courses"
+- GET_FACULTY_BY_RESEARCH: "Who researches machine learning?"
+- SEARCH_COURSES: General search - "courses about programming"
+- COUNT_ENTITIES: "How many courses?", "Number of faculty"
+- COMPARE_COURSES: "Compare CS301 and CS401"
 
-Parameter examples:
-- course_code: "CS101", "MATH201"
-- name: "Smith", "Alice Smith"
-- code: "CS", "MATH" (department code)
-- level: "undergraduate" or "graduate"
-- area: "Machine Learning", "AI"
-- completed_courses: ["CS101", "MATH101"]
-- query: "programming" (search term)
-- course1, course2: for comparing courses
-"""
+IMPORTANT: Always resolve course names to codes (e.g., "Machine Learning" -> "CS401")."""
 
     def __init__(self, provider: Optional[BaseLLMProvider] = None):
         """
@@ -371,18 +296,16 @@ Parameter examples:
         if provider is not None:
             self.provider = provider
         else:
-            llm_provider = os.getenv("LLM_PROVIDER", "mock").lower()
-            if llm_provider == "openai":
-                self.provider = OpenAIProvider()
-            elif llm_provider == "gemini":
+            llm_provider = os.getenv("LLM_PROVIDER", "openai").lower()
+            if llm_provider == "gemini":
                 self.provider = GeminiProvider()
             else:
-                # Default to mock for testing
-                self.provider = MockLLMProvider()
+                # Default to OpenAI for structured output support
+                self.provider = OpenAIProvider()
     
     def parse_question(self, question: str) -> ParsedQuery:
         """
-        Parse a natural language question into a structured query.
+        Parse a natural language question into a structured query using LLM.
         
         Args:
             question: The natural language question
@@ -390,44 +313,58 @@ Parameter examples:
         Returns:
             ParsedQuery object with query type and parameters
         """
-        prompt = f"""{self.PARSE_SYSTEM_PROMPT}
-
-Question: "{question}"
-
-Respond with only the JSON object, no additional text."""
-        
-        response = self.provider.generate(prompt)
-        
-        # Parse the JSON response
         try:
-            # Clean up response - sometimes LLMs wrap in code blocks
-            cleaned = response.strip()
-            if cleaned.startswith("```"):
-                cleaned = re.sub(r"```(?:json)?\n?", "", cleaned)
-                cleaned = cleaned.rstrip("`").strip()
+            # Use structured output parsing
+            result = self.provider.parse_query_structured(question, self.PARSE_SYSTEM_PROMPT)
             
-            parsed = json.loads(cleaned)
-            
-            query_type_str = parsed.get("query_type", "SEARCH_COURSES")
-            try:
-                query_type = QueryType[query_type_str]
-            except KeyError:
-                query_type = QueryType.SEARCH_COURSES
+            # Convert to ParsedQuery
+            query_type = QueryType[result.query_type.value]
+            parameters = self._build_parameters(result)
             
             return ParsedQuery(
                 original_question=question,
                 query_type=query_type,
-                parameters=parsed.get("parameters", {}),
-                confidence=parsed.get("confidence", 0.5)
+                parameters=parameters,
+                confidence=result.confidence
             )
-        except (json.JSONDecodeError, KeyError) as e:
-            # Fallback to search
+        except Exception as e:
+            # Fallback to search on error
             return ParsedQuery(
                 original_question=question,
                 query_type=QueryType.SEARCH_COURSES,
                 parameters={"query": question},
                 confidence=0.3
             )
+    
+    def _build_parameters(self, result: StructuredQueryResponse) -> dict:
+        """Build parameters dict from structured response."""
+        params = {}
+        
+        # Map structured fields to parameter dict based on query type
+        if result.course_code:
+            params["course_code"] = result.course_code.upper()
+        if result.course1:
+            params["course1"] = result.course1.upper()
+        if result.course2:
+            params["course2"] = result.course2.upper()
+        if result.faculty_name:
+            params["name"] = result.faculty_name
+        if result.department_code:
+            params["code"] = result.department_code.upper()
+        if result.level:
+            params["level"] = result.level
+        if result.research_area:
+            params["area"] = result.research_area
+        if result.search_query:
+            params["query"] = result.search_query
+        if result.entity_type:
+            params["entity_type"] = result.entity_type
+        if result.completed_courses:
+            params["completed_courses"] = [c.upper() for c in result.completed_courses]
+        if result.question:
+            params["question"] = result.question
+        
+        return params
     
     def generate_answer(self, question: str, result: ReasoningResult) -> str:
         """
@@ -495,6 +432,9 @@ Respond with only the JSON object, no additional text."""
         
         elif result.query_type == QueryType.COMPARE_COURSES:
             return self._format_comparison(answer)
+        
+        elif result.query_type == QueryType.GENERAL_QUESTION:
+            return self._format_general_answer(answer)
         
         else:
             return f"Result: {answer}"
@@ -597,7 +537,13 @@ Respond with only the JSON object, no additional text."""
         
         return "\n".join(lines)
     
-    def _format_instructor_list(self, instructors: list) -> str:
+    def _format_instructor_list(self, answer) -> str:
+        # Handle both old list format and new dict format
+        if isinstance(answer, dict):
+            instructors = answer.get('instructors', [])
+        else:
+            instructors = answer if answer else []
+        
         if not instructors:
             return "No instructors found for this course."
         
@@ -635,5 +581,36 @@ Respond with only the JSON object, no additional text."""
             f"- Same Level: {'Yes' if comparison.get('same_level') else 'No'}",
             f"- Common Prerequisites: {comparison.get('common_prereq_count', 0)}",
         ]
+        
+        return "\n".join(lines)
+    
+    def _format_general_answer(self, answer: dict) -> str:
+        """Format response for general/conversational questions."""
+        info = answer.get('system_info', {})
+        stats = info.get('stats', {})
+        
+        lines = [
+            f"**{info.get('name', 'University QA Agent')}**",
+            "",
+            info.get('description', ''),
+            "",
+            "**What I can help you with:**",
+        ]
+        
+        for cap in info.get('capabilities', []):
+            lines.append(f"- {cap}")
+        
+        lines.extend([
+            "",
+            "**Current Knowledge Base:**",
+            f"- {stats.get('courses', 0)} courses",
+            f"- {stats.get('faculty', 0)} faculty members",
+            f"- {stats.get('departments', 0)} departments",
+            "",
+            "Try asking questions like:",
+            "- \"What is CS101?\"",
+            "- \"Who teaches Machine Learning?\"",
+            "- \"What are the prerequisites for CS401?\"",
+        ])
         
         return "\n".join(lines)

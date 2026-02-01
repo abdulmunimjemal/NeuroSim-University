@@ -148,23 +148,37 @@ function initializeGraph(data) {
                     'width': 3
                 }
             },
-            // Highlighted state
+            // Highlighted state - nodes glow effect
             {
                 selector: '.highlighted',
                 style: {
                     'background-color': '#fbbf24',
-                    'border-width': 4,
+                    'border-width': 5,
                     'border-color': '#ffffff',
-                    'z-index': 999
+                    'border-opacity': 1,
+                    'z-index': 999,
+                    'overlay-color': '#fbbf24',
+                    'overlay-padding': 8,
+                    'overlay-opacity': 0.3
                 }
             },
+            // Highlighted edges - thicker and glowing
             {
                 selector: 'edge.highlighted',
                 style: {
                     'line-color': '#fbbf24',
                     'target-arrow-color': '#fbbf24',
-                    'width': 4,
-                    'z-index': 999
+                    'width': 5,
+                    'z-index': 999,
+                    'opacity': 1,
+                    'line-style': 'solid'
+                }
+            },
+            // Dimmed state for non-highlighted when something is highlighted
+            {
+                selector: '.dimmed',
+                style: {
+                    'opacity': 0.3
                 }
             },
             // Hidden state
@@ -279,12 +293,69 @@ async function handleQuery() {
         // Animate reasoning steps
         await animateReasoningSteps(result.reasoning_steps);
 
+        // Highlight entities and edges from the result
+        highlightEntitiesFromResult(result);
+
         // Show answer
         displayAnswer(result);
 
     } catch (error) {
         showLoading(false);
         displayError(error.message);
+    }
+}
+
+/**
+ * Highlight entities and edges based on API response
+ */
+function highlightEntitiesFromResult(result) {
+    // Clear previous highlights and dims
+    cy.elements().removeClass('highlighted dimmed');
+    
+    const hasHighlights = (result.highlighted_entities?.length > 0) || 
+                          (result.highlighted_edges?.length > 0);
+    
+    if (!hasHighlights) return;
+    
+    // First dim all elements
+    cy.elements().addClass('dimmed');
+    
+    // Highlight nodes and their connected edges
+    if (result.highlighted_entities && result.highlighted_entities.length > 0) {
+        result.highlighted_entities.forEach(entityId => {
+            const node = cy.getElementById(entityId);
+            if (node.length) {
+                node.removeClass('dimmed').addClass('highlighted');
+                // Also highlight edges connected to this node
+                node.connectedEdges().removeClass('dimmed');
+            }
+        });
+    }
+    
+    // Highlight specific edges
+    if (result.highlighted_edges && result.highlighted_edges.length > 0) {
+        result.highlighted_edges.forEach(edgeId => {
+            const edge = cy.getElementById(edgeId);
+            if (edge.length) {
+                edge.removeClass('dimmed').addClass('highlighted');
+                // Also un-dim connected nodes
+                edge.connectedNodes().removeClass('dimmed');
+            }
+        });
+    }
+    
+    // Fit view to highlighted elements with padding
+    const highlighted = cy.elements('.highlighted');
+    if (highlighted.length > 0) {
+        // Get neighbors for better context
+        const neighborhood = highlighted.closedNeighborhood();
+        neighborhood.removeClass('dimmed');
+        
+        cy.animate({
+            fit: { eles: neighborhood, padding: 60 },
+            duration: 600,
+            easing: 'ease-out-cubic'
+        });
     }
 }
 
@@ -322,10 +393,20 @@ async function animateReasoningSteps(steps) {
 }
 
 function highlightNodesForStep(step) {
-    // Try to find and highlight relevant nodes based on step content
+    // Use outputs from step to highlight specific entities
+    const outputs = step.outputs || {};
+    
+    // Extract entity IDs from step outputs
+    const entityIds = extractEntityIdsFromData(outputs);
+    entityIds.forEach(id => {
+        const node = cy.getElementById(id);
+        if (node.length) {
+            node.addClass('highlighted');
+        }
+    });
+    
+    // Also look for course codes in description
     const description = step.description.toLowerCase();
-
-    // Look for course codes
     const courseCodeMatch = description.match(/[a-z]{2,4}\d{3}/gi);
     if (courseCodeMatch) {
         courseCodeMatch.forEach(code => {
@@ -337,16 +418,30 @@ function highlightNodesForStep(step) {
             }
         });
     }
+}
 
-    // Look for faculty names
-    if (step.rule_name.includes('FACULTY') || description.includes('faculty')) {
-        cy.nodes('[type="faculty"]').addClass('highlighted');
+/**
+ * Recursively extract entity IDs from step output data
+ */
+function extractEntityIdsFromData(data) {
+    const ids = [];
+    
+    if (!data) return ids;
+    
+    if (typeof data === 'object' && !Array.isArray(data)) {
+        if (data.id) {
+            ids.push(data.id);
+        }
+        Object.values(data).forEach(value => {
+            ids.push(...extractEntityIdsFromData(value));
+        });
+    } else if (Array.isArray(data)) {
+        data.forEach(item => {
+            ids.push(...extractEntityIdsFromData(item));
+        });
     }
-
-    // Look for department references
-    if (step.rule_name.includes('DEPARTMENT') || description.includes('department')) {
-        cy.nodes('[type="department"]').addClass('highlighted');
-    }
+    
+    return ids;
 }
 
 function displayAnswer(result) {
@@ -377,7 +472,7 @@ function clearReasoningAndAnswer() {
     document.getElementById('reasoning-container').innerHTML =
         '<p class="placeholder-text">Processing your question...</p>';
     document.getElementById('answer-container').innerHTML = '';
-    cy.elements().removeClass('highlighted');
+    cy.elements().removeClass('highlighted dimmed');
 }
 
 // ============================================================

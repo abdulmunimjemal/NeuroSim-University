@@ -1,0 +1,61 @@
+# Neuro-Symbolic University QA Agent
+# Docker Compose configuration
+
+services:
+  # ===================
+  # Frontend (nginx)
+  # ===================
+  frontend:
+    image: nginx:alpine
+    container_name: neuro-symbolic-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./visualizer:/usr/share/nginx/html:ro
+      - ./visualizer/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ===================
+  # Backend API (FastAPI)
+  # ===================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neuro-symbolic-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount data directory for easy updates without rebuild
+      - ./data:/app/data:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/stats')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===================
+  # Development mode
+  # ===================
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neuro-symbolic-api-dev
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src:ro
+      - ./data:/app/data:ro
+      - ./visualizer:/app/visualizer:ro
+    command: ["python", "-m", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev

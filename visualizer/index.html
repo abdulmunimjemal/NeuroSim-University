@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neuro-Symbolic University QA Visualizer</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="styles.css">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Cytoscape.js -->
@@ -42,7 +42,13 @@
                     <label><input type="checkbox" id="filter-faculty" checked> Faculty</label>
                     <label><input type="checkbox" id="filter-course" checked> Courses</label>
                 </div>
-                <div id="cy-container"></div>
+                <div id="cy-container">
+                    <!-- Loading Overlay - inside graph panel -->
+                    <div id="loading-overlay" class="loading-overlay hidden">
+                        <div class="spinner"></div>
+                        <p>Processing...</p>
+                    </div>
+                </div>
                 <div class="graph-legend">
                     <span class="legend-item"><span class="dot dept"></span> Department</span>
                     <span class="legend-item"><span class="dot faculty"></span> Faculty</span>
@@ -93,15 +99,9 @@
                 <div id="modal-body"></div>
             </div>
         </div>
-
-        <!-- Loading Overlay -->
-        <div id="loading-overlay" class="loading-overlay hidden">
-            <div class="spinner"></div>
-            <p>Processing...</p>
-        </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="app.js"></script>
     <script>lucide.createIcons();</script>
 </body>
 

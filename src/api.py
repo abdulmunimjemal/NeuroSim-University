@@ -17,7 +17,7 @@ import os
 
 from src.knowledge_graph import KnowledgeGraph
 from src.reasoner import SymbolicReasoner, QueryType
-from src.llm_interface import LLMInterface, MockLLMProvider
+from src.llm_interface import LLMInterface
 from src.main import UniversityQAAgent
 
 
@@ -38,7 +38,8 @@ app.add_middleware(
 
 # Initialize components
 kg = KnowledgeGraph()
-agent = UniversityQAAgent(llm_provider="mock")
+llm_provider = os.getenv("LLM_PROVIDER", "openai")  # Default to real LLM
+agent = UniversityQAAgent(llm_provider=llm_provider)
 
 
 # Request/Response models
@@ -59,6 +60,8 @@ class QueryResponse(BaseModel):
     query_type: str
     answer: str
     reasoning_steps: list[ReasoningStep]
+    highlighted_entities: list[str] = []  # Entity IDs to highlight in graph
+    highlighted_edges: list[str] = []  # Edge IDs to highlight (source_relation_target format)
     error: Optional[str] = None
 
 
@@ -186,10 +189,17 @@ def process_query(request: QueryRequest):
     try:
         response = agent.ask(request.question)
         
-        # Format reasoning steps
+        # Format reasoning steps and extract entity IDs
         steps = []
+        highlighted_entities = set()
+        highlighted_edges = set()
+        
         for i, step in enumerate(response.reasoning_result.reasoning_chain):
             outputs = step.outputs
+            
+            # Extract entity IDs from outputs
+            _extract_entity_ids(outputs, highlighted_entities, highlighted_edges)
+            
             # Convert outputs to dict if needed
             if hasattr(outputs, '__dict__'):
                 outputs = outputs.__dict__
@@ -206,11 +216,16 @@ def process_query(request: QueryRequest):
                 outputs=outputs
             ))
         
+        # Also extract from final answer
+        _extract_entity_ids(response.reasoning_result.answer, highlighted_entities, highlighted_edges)
+        
         return QueryResponse(
             success=response.reasoning_result.success,
             query_type=response.reasoning_result.query_type.value,
             answer=response.answer,
             reasoning_steps=steps,
+            highlighted_entities=list(highlighted_entities),
+            highlighted_edges=list(highlighted_edges),
             error=response.reasoning_result.error_message
         )
     except Exception as e:
@@ -219,8 +234,79 @@ def process_query(request: QueryRequest):
             query_type="UNKNOWN",
             answer="",
             reasoning_steps=[],
+            highlighted_entities=[],
+            highlighted_edges=[],
             error=str(e)
         )
+
+
+def _extract_entity_ids(data, entities: set, edges: set):
+    """Recursively extract entity IDs from reasoning outputs."""
+    if data is None:
+        return
+    
+    if isinstance(data, dict):
+        # Check for entity with 'id' field
+        if 'id' in data:
+            entities.add(data['id'])
+        
+        # Get course from nested 'course' field
+        course_id = None
+        if 'course' in data and isinstance(data['course'], dict):
+            course_id = data['course'].get('id')
+            if course_id:
+                entities.add(course_id)
+        elif 'id' in data:
+            course_id = data.get('id')
+        
+        # Check for prerequisite relationships
+        prereqs_key = 'prerequisites' if 'prerequisites' in data else 'all_prerequisites'
+        if prereqs_key in data and isinstance(data[prereqs_key], list):
+            for prereq in data[prereqs_key]:
+                if isinstance(prereq, dict) and 'id' in prereq:
+                    entities.add(prereq['id'])
+                    if course_id:
+                        edges.add(f"{course_id}_requires_{prereq['id']}")
+        
+        # Check for instructors
+        if 'instructors' in data and isinstance(data['instructors'], list):
+            for instructor in data['instructors']:
+                if isinstance(instructor, dict) and 'id' in instructor:
+                    entities.add(instructor['id'])
+                    if course_id:
+                        edges.add(f"{instructor['id']}_teaches_{course_id}")
+        
+        # Check for courses list (e.g., courses by department, courses taught by)
+        if 'courses' in data and isinstance(data['courses'], list):
+            for course in data['courses']:
+                if isinstance(course, dict) and 'id' in course:
+                    entities.add(course['id'])
+        
+        # Check for faculty list
+        if 'faculty' in data and isinstance(data['faculty'], list):
+            for fac in data['faculty']:
+                if isinstance(fac, dict) and 'id' in fac:
+                    entities.add(fac['id'])
+        
+        # Check for department
+        if 'department' in data and isinstance(data['department'], dict):
+            dept = data['department']
+            if 'id' in dept:
+                entities.add(dept['id'])
+                # Add belongs_to edges for entities in this result
+                if 'id' in data:
+                    edges.add(f"{data['id']}_belongs_to_{dept['id']}")
+        
+        # Recurse into nested dicts (but skip already processed keys)
+        skip_keys = {'course', 'courses', 'faculty', 'instructors', 'prerequisites', 
+                     'all_prerequisites', 'department'}
+        for key, value in data.items():
+            if key not in skip_keys:
+                _extract_entity_ids(value, entities, edges)
+    
+    elif isinstance(data, list):
+        for item in data:
+            _extract_entity_ids(item, entities, edges)
 
 
 @app.get("/api/stats")
@@ -248,8 +334,6 @@ def get_example_questions():
 
 # Serve static files (visualizer frontend)
 visualizer_path = os.path.join(os.path.dirname(__file__), "..", "visualizer")
-if os.path.exists(visualizer_path):
-    app.mount("/static", StaticFiles(directory=visualizer_path), name="static")
 
 
 @app.get("/")
@@ -259,6 +343,11 @@ def serve_frontend():
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {"message": "Visualizer not found. Run from project root."}
+
+
+# Mount static files at root (must be after all other routes)
+if os.path.exists(visualizer_path):
+    app.mount("/", StaticFiles(directory=visualizer_path), name="static")
 
 
 if __name__ == "__main__":

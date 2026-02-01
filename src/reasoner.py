@@ -31,6 +31,7 @@ class QueryType(Enum):
     SEARCH_COURSES = "search_courses"
     COUNT_ENTITIES = "count_entities"
     COMPARE_COURSES = "compare_courses"
+    GENERAL_QUESTION = "general_question"
 
 
 @dataclass
@@ -129,6 +130,7 @@ class SymbolicReasoner:
             QueryType.SEARCH_COURSES: self._rule_search_courses,
             QueryType.COUNT_ENTITIES: self._rule_count_entities,
             QueryType.COMPARE_COURSES: self._rule_compare_courses,
+            QueryType.GENERAL_QUESTION: self._rule_general_question,
         }
     
     def _resolve_course_name(self, name: str) -> str:
@@ -371,7 +373,7 @@ class SymbolicReasoner:
             rule_name="QUERY_PREREQUISITES",
             description=f"Found {len(prereqs)} direct prerequisite(s)",
             inputs={'course_id': course['id']},
-            outputs=[p['code'] for p in prereqs]
+            outputs={'course': course, 'prerequisites': prereqs}
         ))
         
         return ReasoningResult(
@@ -413,7 +415,7 @@ class SymbolicReasoner:
             rule_name="QUERY_DIRECT_PREREQUISITES",
             description=f"Found {len(direct_prereqs)} direct prerequisite(s)",
             inputs={'course_id': course['id']},
-            outputs=[p['code'] for p in direct_prereqs]
+            outputs={'course': course, 'prerequisites': direct_prereqs}
         ))
         
         # Get all transitive prereqs
@@ -423,7 +425,7 @@ class SymbolicReasoner:
             rule_name="COMPUTE_TRANSITIVE_CLOSURE",
             description=f"Computed transitive closure: {len(all_prereqs)} total prerequisite(s)",
             inputs={'direct_prereqs': [p['code'] for p in direct_prereqs]},
-            outputs=[p['code'] for p in all_prereqs]
+            outputs={'course': course, 'all_prerequisites': all_prereqs}
         ))
         
         return ReasoningResult(
@@ -463,7 +465,7 @@ class SymbolicReasoner:
             rule_name="QUERY_DEPARTMENT_COURSES",
             description=f"Found {len(courses)} course(s) in {dept['name']}",
             inputs={'dept_id': dept['id']},
-            outputs=[c['code'] for c in courses]
+            outputs={'department': dept, 'courses': courses}
         ))
         
         return ReasoningResult(
@@ -503,7 +505,7 @@ class SymbolicReasoner:
             rule_name="QUERY_DEPARTMENT_FACULTY",
             description=f"Found {len(faculty)} faculty member(s) in {dept['name']}",
             inputs={'dept_id': dept['id']},
-            outputs=[f['name'] for f in faculty]
+            outputs={'department': dept, 'faculty': faculty}
         ))
         
         return ReasoningResult(
@@ -561,7 +563,7 @@ class SymbolicReasoner:
             rule_name="QUERY_FACULTY_COURSES",
             description=f"{faculty['name']} teaches {len(courses)} course(s)",
             inputs={'faculty_id': faculty['id']},
-            outputs=[c['code'] for c in courses]
+            outputs={'faculty': faculty, 'courses': courses}
         ))
         
         return ReasoningResult(
@@ -601,12 +603,12 @@ class SymbolicReasoner:
             rule_name="QUERY_COURSE_INSTRUCTORS",
             description=f"{course['name']} is taught by {len(instructors)} instructor(s)",
             inputs={'course_id': course['id']},
-            outputs=[i['name'] for i in instructors]
+            outputs={'course': course, 'instructors': instructors}
         ))
         
         return ReasoningResult(
             query_type=QueryType.GET_COURSE_INSTRUCTORS,
-            answer=instructors,
+            answer={'course': course, 'instructors': instructors},
             success=True,
             reasoning_chain=chain
         )
@@ -907,6 +909,51 @@ class SymbolicReasoner:
         return ReasoningResult(
             query_type=QueryType.COMPARE_COURSES,
             answer=comparison,
+            success=True,
+            reasoning_chain=chain
+        )
+    
+    def _rule_general_question(self, params: dict) -> ReasoningResult:
+        """Handle general/conversational questions not about specific entities."""
+        chain = []
+        question = params.get('question', '')
+        
+        chain.append(ReasoningStep(
+            rule_name="IDENTIFY_GENERAL_QUESTION",
+            description="This is a general question, not a knowledge graph query",
+            inputs={'question': question},
+            outputs={'type': 'conversational'}
+        ))
+        
+        # Get system info for context
+        stats = self.kg.get_graph_statistics()
+        
+        chain.append(ReasoningStep(
+            rule_name="LOAD_SYSTEM_CONTEXT",
+            description="Loading system information for response",
+            inputs={},
+            outputs={'stats': stats}
+        ))
+        
+        answer = {
+            'type': 'general',
+            'question': question,
+            'system_info': {
+                'name': 'Neuro-Symbolic University QA Agent',
+                'description': 'I am an AI assistant that combines neural language understanding with symbolic reasoning to answer questions about university courses, faculty, and departments.',
+                'capabilities': [
+                    'Course information and prerequisites',
+                    'Faculty information and research areas',
+                    'Department details and heads',
+                    'Course comparisons and eligibility checks'
+                ],
+                'stats': stats
+            }
+        }
+        
+        return ReasoningResult(
+            query_type=QueryType.GENERAL_QUESTION,
+            answer=answer,
             success=True,
             reasoning_chain=chain
         )
