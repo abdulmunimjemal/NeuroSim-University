@@ -242,30 +242,47 @@ class LLMInterface:
     PARSE_SYSTEM_PROMPT = """You are a query parser for a university knowledge base.
 Your ONLY job is to classify the question type and extract parameters.
 
-CRITICAL: Follow these course mappings EXACTLY:
-- "Physics II" → PHYS201 (NOT PHYS301)
-- "Physics I" or "Physics" → PHYS101
-- "Quantum Mechanics" → PHYS301
-- "Calculus" or "Calculus I" → MATH101
-- "Calculus II" → MATH102
-- "Machine Learning" → CS401
-- "Algorithms" → CS301
-- "Data Structures" → CS201
-- "Programming" or "Intro to Programming" → CS101
+=== COMPLETE COURSE NAME TO CODE MAPPINGS ===
+ALWAYS resolve course names to these EXACT codes:
 
-CRITICAL: Query type rules:
+Computer Science (CS):
+- "Introduction to Programming" / "Intro to Programming" / "Programming" → CS101
+- "Data Structures" → CS201
+- "Algorithms" → CS301
+- "Computer Networks" / "Networks" → CS350
+- "Machine Learning" / "ML" → CS401
+- "Natural Language Processing" / "NLP" → CS402
+- "Cybersecurity" / "Cyber Security" → CS450
+
+Mathematics (MATH):
+- "Calculus I" / "Calculus 1" / "Calculus" → MATH101
+- "Calculus II" / "Calculus 2" → MATH102
+- "Linear Algebra" → MATH201
+- "Discrete Mathematics" / "Discrete Math" → MATH301
+- "Probability and Statistics" / "Probability" / "Statistics" → MATH401
+
+Physics (PHYS):
+- "Physics I" / "Physics 1" / "Physics" → PHYS101
+- "Physics II" / "Physics 2" → PHYS201 (NOT PHYS301!)
+- "Quantum Mechanics" → PHYS301
+
+Electrical Engineering (EE):
+- "Circuits I" / "Circuits 1" / "Circuits" → EE101
+- "Digital Logic Design" / "Digital Logic" → EE201
+- "Signal Processing" → EE301
+
+=== QUERY TYPE RULES ===
 1. GENERAL_QUESTION is ONLY for: "Hello", "Hi", "Who are you?", "What can you do?", "Help"
 2. ANY question mentioning courses/faculty/departments is NOT GENERAL_QUESTION
 3. "Who teaches [course name]?" → GET_COURSE_INSTRUCTORS (even if course doesn't exist)
-4. "Who teaches the Amharic course?" → GET_COURSE_INSTRUCTORS with course_code="AMHARIC"
 
 Examples:
 - "Who teaches Physics II?" → GET_COURSE_INSTRUCTORS, course_code="PHYS201"
+- "What is Probability and Statistics?" → GET_COURSE_INFO, course_code="MATH401"
 - "Who teaches the Amharic course?" → GET_COURSE_INSTRUCTORS, course_code="AMHARIC"
 - "Who are you?" → GENERAL_QUESTION
-- "What is Machine Learning?" → GET_COURSE_INFO, course_code="CS401"
 
-If you cannot find a course code mapping, use the course name as-is in UPPERCASE."""
+If a course name is not in the mappings above, use the name in UPPERCASE as the code."""
 
     def __init__(self, provider: Optional[BaseLLMProvider] = None):
         """
@@ -342,17 +359,66 @@ If you cannot find a course code mapping, use the course name as-is in UPPERCASE
                     result.query_type = QueryTypeEnum.SEARCH_COURSES
                     result.search_query = question
         
-        # Fix: Physics II mapping
+        # Comprehensive course name resolution
+        course_mappings = {
+            # CS courses
+            'introduction to programming': 'CS101',
+            'intro to programming': 'CS101',
+            'data structures': 'CS201',
+            'algorithms': 'CS301',
+            'computer networks': 'CS350',
+            'networks': 'CS350',
+            'machine learning': 'CS401',
+            'natural language processing': 'CS402',
+            'cybersecurity': 'CS450',
+            'cyber security': 'CS450',
+            # MATH courses
+            'probability and statistics': 'MATH401',
+            'discrete mathematics': 'MATH301',
+            'discrete math': 'MATH301',
+            'linear algebra': 'MATH201',
+            'calculus ii': 'MATH102',
+            'calculus 2': 'MATH102',
+            'calculus i': 'MATH101',
+            'calculus 1': 'MATH101',
+            'calculus': 'MATH101',
+            'probability': 'MATH401',
+            'statistics': 'MATH401',
+            # PHYS courses
+            'quantum mechanics': 'PHYS301',
+            'physics ii': 'PHYS201',
+            'physics 2': 'PHYS201',
+            'physics i': 'PHYS101',
+            'physics 1': 'PHYS101',
+            'physics': 'PHYS101',
+            # EE courses
+            'digital logic design': 'EE201',
+            'digital logic': 'EE201',
+            'signal processing': 'EE301',
+            'circuits i': 'EE101',
+            'circuits 1': 'EE101',
+            'circuits': 'EE101',
+            # Abbreviations
+            'nlp': 'CS402',
+            'ml': 'CS401',
+            'programming': 'CS101',
+        }
+        
+        # Apply course name resolution if we have a course_code
         if result.course_code:
-            course_upper = result.course_code.upper()
-            if 'physics ii' in question_lower or 'physics 2' in question_lower:
-                result.course_code = "PHYS201"
-            elif 'physics i' in question_lower or 'physics 1' in question_lower or question_lower.strip() == 'physics':
-                result.course_code = "PHYS101"
-            elif 'calculus ii' in question_lower or 'calculus 2' in question_lower:
-                result.course_code = "MATH102"
-            elif 'calculus i' in question_lower or 'calculus 1' in question_lower or question_lower.strip() == 'calculus':
-                result.course_code = "MATH101"
+            course_lower = result.course_code.lower().strip()
+            
+            # Check if it matches any known course name
+            if course_lower in course_mappings:
+                result.course_code = course_mappings[course_lower]
+            else:
+                # Also check the original question for course names
+                # Sort by length (longest first) to match more specific names before generic ones
+                sorted_mappings = sorted(course_mappings.items(), key=lambda x: len(x[0]), reverse=True)
+                for name, code in sorted_mappings:
+                    if name in question_lower:
+                        result.course_code = code
+                        break
         
         return result
     
